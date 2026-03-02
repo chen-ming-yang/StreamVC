@@ -36,6 +36,45 @@ flowchart LR
     class SP,CE,CL,D,f0,f0y,FE,CAT else;
 ```
 
+## Training Flow (High-Level)
+Training is performed in a single unified stage. In each step, three phases are executed sequentially:
+
+1. **Content Encoder** — classification loss (cross-entropy with HuBERT pseudo labels)
+2. **Generator (Decoder + Speech Encoder)** — adversarial + feature matching + reconstruction loss
+3. **Discriminator** — adversarial loss
+
+```mermaid
+flowchart LR
+    subgraph Unified Training
+        A[Audio Batch] --> CE[Content Encoder]
+        CE --> H[LayerNorm + Dropout + Linear]
+        H --> L[Class Logits]
+        HLBL[HuBERT Labels] --> CE_L((Cross-Entropy\nLoss))
+        L --> CE_L
+
+        A --> CE2[Content Encoder] --> CL[Content Latent]
+        A --> F0[f0 Estimator] --> F0W[f0 whitened]
+        A --> EN[Energy Estimator] --> ENF[Energy]
+        CL --> CAT((Concat))
+        F0W --> CAT
+        ENF --> CAT
+        A --> SE[Speech Encoder] --> LP[Learnable Pooling] --> SL[Speaker Latent]
+        CAT --> DEC[Decoder]
+        SL -->|Conditioning| DEC
+        DEC --> G[Generated Audio]
+        A --> R[Real Audio]
+        G --> D[Multi-Scale Discriminator]
+        R --> D
+        D --> ADV_L((Adversarial Loss))
+        D --> FEAT_L((Feature Matching Loss))
+        R --> REC_L((Reconstruction Loss))
+        G --> REC_L
+        ADV_L --> GEN_L((Generator Loss))
+        FEAT_L --> GEN_L
+        REC_L --> GEN_L
+    end
+```
+
 ## Example Usage
 ### Training
 #### Requirements
@@ -59,48 +98,20 @@ python preprocess_dataset.py --help
 ```
 
 #### Running the training script
-`train.py` is the python script for training, it uses [🤗 Accelerate](https://huggingface.co/docs/accelerate).
-To configure Accelerate to your environment use [`accelerator config`](https://huggingface.co/docs/accelerate/package_reference/cli#accelerate-config).
 
-To launch the script, run:
-```bash
-accelerate launch [ACCELERATE-OPTIONS] train.py [TRAINING-OPTIONS]
-```
-To see the available training options, run: 
+The training of StreamVC is done in a single unified stage where the content encoder, generator (decoder + speech encoder), and discriminator are all trained jointly. 
 
+An example of launching the training script:
 ```bash
-python train.py --help
-```
-
-The training of StreamVC consists of 2 parts - the Content Encoder training and the Decoder/Speech Encoder Training.
-An example of launching the training script: (hyperparameter tuning is needed, and there are many options)
-```bash
-# Content Encoder training
 accelerate launch \
-     train.py content-encoder \
-     --run-name svc_111 \
-     --batch_size 64 \
-     --num-epochs 7 \
-     --datasets.train-dataset-path "./dataset/train.clean.360" "./dataset/train.clean.100" "./dataset/train.other.500" \
-     --model-checkpoint-interval 500 \
-     --accuracy-interval 200 \
-     lr-scheduler:one-cycle-lr \
-     --lr-scheduler.div_factor 15 \
-     --lr-scheduler.final_div_factor 1000 \
-     --lr-scheduler.max 7e-4 \
-     --lr-scheduler.pct_start 0.2
-
-# Decoder training, it is required to pass the Content Encoder checkpoint
-accelerate launch \
-    train.py decoder \
-    --run-name svc_112 \
-    --batch_size 48 \
-    --num-epochs 5 \
-    --lr 1e-5 \
-    --datasets.train-dataset-path "./dataset/train.clean.360" "./dataset/train.clean.100" "./dataset/train.other.500" \
+    train.py \
+    --run-name myrun_228 \
+    --batch_size 24 \
+    --num-epochs 30 \
+    --lr 1e-4 \
+    --datasets.train-dataset-path "./dataset/train-clean-100" "./dataset/train-clean-360" \
     --model-checkpoint-interval 500 \
     --log-gradient-interval 500 \
-    --content-encoder-checkpoint "./checkpoints/svc_111_content_encoder/model.safetensors" \
     lr-scheduler:cosine-annealing-warm-restarts \
     --lr-scheduler.T-0 3000
 ```
@@ -118,11 +129,16 @@ To launch the script, run:
 ```bash
 python inference.py -c <model_checkpoint> -s <source_speech> -t <target_speech> -o <output_file>
 ```
-To see the available inference options, run: 
-
+For eaxmaple
 ```bash
-python inference.py --help
+python inference.py \
+    -c /root/autodl-tmp/cmy/StreamVC/checkpoints/myrun_228_state_epoch8/pytorch_model_1.bin \
+    -s /root/autodl-tmp/cmy/StreamVC/LibriTTS/test-clean/1089/134686/1089_134686_000001_000001.wav \
+    -t /root/autodl-tmp/cmy/StreamVC/LibriTTS/test-clean/672/122797/672_122797_000002_000002.wav \
+    -o output.wav
 ```
+
+
 
 ## Acknowledgements
 This project was made possible by the following open source projects:
