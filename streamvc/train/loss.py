@@ -105,19 +105,20 @@ class ReconstructionLoss(nn.Module):
             orig_audio_spec = mel_spectrogram(original)
             generated_audio_spec = mel_spectrogram(generated)
 
-            alpha_s = torch.sqrt(torch.tensor(s) / 2).to(original.device)
-            l1_loss = torch.abs(orig_audio_spec - generated_audio_spec)
+            # alpha_s = torch.sqrt(torch.tensor(s) / 2).to(original.device) 
+            # Use constant weighting or removing alpha_s to avoid high scaling on large windows
+            l1_loss = torch.abs(orig_audio_spec - generated_audio_spec).mean(dim=1, keepdim=True)
             l1_loss = masked_mean_from_ratios(l1_loss, mask_ratio)
-            l2_log_loss = torch.pow(
+            
+            # Use L1 loss on log-mel spectrograms for better stability than L2/RMSE
+            l2_log_loss = torch.abs(
                 torch.log(orig_audio_spec + self.epsilon)
                 - torch.log(generated_audio_spec + self.epsilon),
-                exponent=2,
-            )
-            l2_log_loss = l2_log_loss.mean(dim=1, keepdim=True)
-            l2_log_loss = torch.sqrt(l2_log_loss)
+            ).mean(dim=1, keepdim=True)
+            
             l2_log_loss = masked_mean_from_ratios(l2_log_loss, mask_ratio)
 
-            return l1_loss + alpha_s * l2_log_loss
+            return l1_loss + l2_log_loss
 
         return custom_run
 

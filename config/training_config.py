@@ -5,9 +5,9 @@ import tyro
 
 @dataclass(frozen=True)
 class DatasetsConfig:
-    train_dataset_path: str | list[str] = "./dataset/train.clean.100"
+    train_dataset_path: str | list[str] = "./dataset/train-clean-100"
     """Path to the preprocessed training dataset"""
-    dev_dataset_path: str | list[str] = "./dataset/dev.clean"
+    dev_dataset_path: str | list[str] = "./dataset/dev-clean"
     """Path to the preprocessed development dataset"""
     test_dataset_path: str | list[str] = "./dataset/test.clean"
     """Path to the preprocessed test dataset"""
@@ -32,8 +32,8 @@ class TrainingBaseConfig:
     num_epochs: int = 1
     """Number of epochs for training"""
 
-    lr: float = 4e-3
-    """Learning rate for the optimizer"""
+    lr: float = 3e-4
+    """Learning rate for the optimizer""" 
 
     betas: tuple[float, float] = (0.5, 0.9)
     """Beta parameters for the AdamW optimizer"""
@@ -48,7 +48,13 @@ class TrainingBaseConfig:
     """Learning rate scheduler for the optimizer"""
 
     model_checkpoint_interval: int = 100
-    """Interval (in steps) at which to save model checkpoints"""
+    """Interval (in steps) at which to save model checkpoints. Set to 0 to disable step-based checkpoints."""
+
+    epoch_checkpoint_interval: int = 2
+    """Interval (in epochs) at which to save model checkpoints. Set to 0 to disable epoch-based checkpoints."""
+
+    max_checkpoints: int = 5
+    """Maximum number of checkpoints to keep. Older checkpoints will be deleted. Set to 0 to keep all."""
 
     model_checkpoint_path: str = "./checkpoints"
     """Path to save model checkpoints"""
@@ -87,14 +93,31 @@ class DecoderTrainingConfig(TrainingBaseConfig):
     content_encoder_checkpoint: str = tyro.MISSING
     """Path to the content encoder checkpoint"""
 
-    lambda_feature: float = 100.0
+    lambda_feature: float = 0.05
     """Weight of the feature matching loss"""
 
-    lambda_reconstruction: float = 1.0
+    lambda_reconstruction: float = 45.0
     """Weight of the reconstruction loss"""
 
     lambda_adversarial: float = 1.0
     """Weight of the adversarial loss"""
 
-    lr_discriminator_multiplier: float = 1.0
+    lr_discriminator_multiplier: float = 0.2
     """Learning rate multiplier for the discriminator. Use 1.0 for same as generator"""
+
+
+@dataclass(frozen=True)
+class UnifiedTrainingConfig(TrainingBaseConfig):
+
+    lambda_conetent_encoder: float = 1.0
+    lambda_adversarial: float = 1.0
+    lambda_feature: float = 100.0
+    lambda_reconstruction: float = 1.0
+
+    lr_discriminator_multiplier: float = 1.0
+
+    dropout: float = 0.1
+
+    accuracy_interval: int = 200
+    accuracy_limit_num_batches: int | None = None
+    log_gradient_interval: int | None = None
