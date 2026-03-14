@@ -2,9 +2,7 @@
 An unofficial pytorch implementation of [STREAMVC: REAL-TIME LOW-LATENCY VOICE CONVERSION](https://arxiv.org/pdf/2401.03078.pdf) created for learning purposes.
 
 This is not an official product, and while the code should work, I don't have a trained model checkpoint to share.
-If you successfully trained the model, I encourage you to share it on Hugging Face, and ping me so I can link it here.
 
-The streaming inference as it is in the paper isn't fully implemented, and I have no plans to implement it.
 
 ```mermaid
 flowchart LR 
