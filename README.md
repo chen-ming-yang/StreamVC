@@ -114,6 +114,20 @@ accelerate launch \
     --log-gradient-interval 500 \
     lr-scheduler:cosine-annealing-warm-restarts \
     --lr-scheduler.T-0 3000
+
+accelerate launch \
+    train.py \
+    --run-name myrun_228 \
+    --batch_size 24 \
+    --num-epochs 30 \
+    --lr 1e-4 \
+    --datasets.train-dataset-path "./dataset/train-clean-100" "./dataset/train-clean-360" \
+    --model-checkpoint-interval 500 \
+    --restore-state-dir "./checkpoints/myrun_228_state_epoch20" \
+    --log-gradient-interval 500 \
+    lr-scheduler:cosine-annealing-warm-restarts \
+    --lr-scheduler.T-0 3000
+    
 ```
 ### Inference
 #### Requirements
